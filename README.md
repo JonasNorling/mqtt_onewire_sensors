@@ -12,3 +12,5 @@ Dependencies:
 One-wire must be enabled on the Raspberry Pi, either by enabling the appropriate option with `raspi-config` or by adding `dtoverlay=w1-gpio` to `/boot/config.txt`. When properly enabled, any one-wire devices should appear as `/sys/bus/w1/devices/*/w1_slave`.
 
 See https://pinout.xyz/pinout/1_wire.
+
+This script can be run as a service from systemd. See mqtt_1w.service for installation instructions.
