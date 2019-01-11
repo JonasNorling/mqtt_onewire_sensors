@@ -10,6 +10,7 @@ import paho.mqtt.client as mqtt
 import time
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 TOPIC_MATCH = "temperature/#"
@@ -17,9 +18,13 @@ TOPIC_RE = re.compile(TOPIC_MATCH.replace("#", "(.+)"))
 
 rrd_path = None
 
-def create_rrd(rrdfile):
+def create_rrd(rrdfile, prefill_src=None, prefill_ds=None):
     try:
         log.info("Creating RRD %s" % rrdfile)
+        prefill_opts = []
+        if prefill_src is not None:
+            prefill_opts = ["--source", prefill_src]
+            prefill_ds_exp = "=" + prefill_ds
         # 4 weeks with minute level data
         HIGH_RES_SAMPLES = 40320
         # 365 days with ten minute level data
@@ -27,8 +32,9 @@ def create_rrd(rrdfile):
         # ten years with hour level data
         LOW_RES_SAMPLES = 87600
         completed = subprocess.run(["rrdtool", "create", str(rrdfile),
+                *prefill_opts,
                 "-O", "--step", "60",
-                "DS:value:GAUGE:120:-60:60",
+                "DS:value%s:GAUGE:120:-60:60" % prefill_ds_exp,
                 "RRA:AVERAGE:0.5:1:%d" % HIGH_RES_SAMPLES,
                 "RRA:AVERAGE:0.5:10:%d" % MED_RES_SAMPLES,
                 "RRA:AVERAGE:0.5:60:%d" % LOW_RES_SAMPLES,
@@ -86,10 +92,16 @@ if __name__ == "__main__":
                         help="Path to directory with RRD files")
     parser.add_argument("--debug", default=False, action="store_true",
                         help="Enable debug printouts")
+    parser.add_argument("--prefill", nargs=3, metavar=("NEW-RRD", "OLD-RRD", "DS"),
+                        help="Create a prefilled RRD")
     args = parser.parse_args()
     
     if args.debug:
         logging.getLogger().setLevel('DEBUG')
+
+    if args.prefill:
+        create_rrd(*args.prefill)
+        sys.exit(0)
 
     client_id = "%s-%s" % ("mqtt_to_rrd", platform.node())
     rrd_path = args.rrd_path
