@@ -4,6 +4,7 @@
 #
 
 import argparse
+import itertools
 import logging
 import subprocess
 
@@ -20,30 +21,32 @@ COLOR_OPTS = "--color SHADEA#{BG:06x} --color SHADEB#{BG:06x} \
 --color GRID#444444 --color MGRID#777777".format(
     BG=BG_COLOR, FG=FG_COLOR)
 
-def plot(rrd_files, outdir, timespan="1d"):
+def plot(rrds_and_labels, outdir, timespan="1d"):
     log.debug("Plotting %s" % timespan)
     start = "now-%s" % timespan
     filename = "%s/plot-%s.png" % (outdir, timespan)
-    defs = ""
-    elements = ""
-    for i, rrd in enumerate(rrd_files):
-        defs += ("DEF:sensor{i}={rrd}:value:AVERAGE " +
-                 "DEF:sensor{i}_min={rrd}:value:MIN " +
-                 "DEF:sensor{i}_max={rrd}:value:MAX " +
-                 "CDEF:sensor{i}_delta=sensor{i}_max,sensor{i}_min,- "
-                ).format(i = i, rrd = rrd)
-        elements += ("AREA:sensor{i}_min#{color:06x}1e " +
-                     "LINE2:sensor{i}_min#{color:06x}:'{label}' " +
-                     "AREA:sensor{i}_delta#{color:06x}::STACK "
-                ).format(i = i, color = COLORS[i], label = "thing")
+    defs = []
+    for i, (rrd, label) in enumerate(rrds_and_labels):
+        label = label.replace(":", r"\:")
+        d = [
+                "DEF:sensor{i}={rrd}:value:AVERAGE",
+                 "DEF:sensor{i}_min={rrd}:value:MIN",
+                 "DEF:sensor{i}_max={rrd}:value:MAX",
+                 "CDEF:sensor{i}_delta=sensor{i}_max,sensor{i}_min,-",
+                 "AREA:sensor{i}_min#{color:06x}1e",
+                 "LINE2:sensor{i}_min#{color:06x}:{label}",
+                 "AREA:sensor{i}_delta#{color:06x}::STACK"
+        ]
+        defs += list(map(lambda s: s.format(i = i, rrd = rrd,
+                color = COLORS[i], label = label), d))
     try:
         completed = subprocess.run(["rrdtool", "graph",
-            filename,
-            *COMMON_OPTS.split(),
-            *COLOR_OPTS.split(),
-            "--end", "now", "--start", start,
-            "--width", str(SIZE[0]), "--height", str(SIZE[1]),
-            *defs.split(), *elements.split()],
+                filename,
+                *COMMON_OPTS.split(),
+                *COLOR_OPTS.split(),
+                "--end", "now", "--start", start,
+                "--width", str(SIZE[0]), "--height", str(SIZE[1]),
+                *defs],
             stdout=subprocess.PIPE)
         if completed.returncode != 0:
             log.error("RRD plot failed")
@@ -57,6 +60,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Publish one-wire sensor values with MQTT")
     parser.add_argument(nargs="+", dest="rrd", metavar="RRD", help="RRD files")
+    parser.add_argument("-l", action="append",
+                        help="Data label (can be repeated)")
     parser.add_argument("--debug", default=False, action="store_true",
                         help="Enable debug printouts")
     parser.add_argument("--outdir", default=".", metavar="DIR", help="Output directory")
@@ -70,5 +75,8 @@ if __name__ == "__main__":
     timespans = ["1d", "1w", "1m", "1y"]
     if args.t is not None:
         timespans = args.t
+    if args.l is None:
+        args.l = []
+    rrds_and_labels = itertools.zip_longest(args.rrd, args.l, fillvalue="sensor")
     for timespan in timespans:
-        plot(args.rrd, args.outdir, timespan)
+        plot(rrds_and_labels, args.outdir, timespan)
