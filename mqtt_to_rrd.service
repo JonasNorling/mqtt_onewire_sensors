@@ -1,0 +1,18 @@
+# Systemd service file
+# To enable this service:
+#  - Copy or link this file into /etc/systemd/system/
+#  - sudo systemctl daemon-reload
+#  - sudo systemctl start mqtt_to_rrd.service
+
+[Unit]
+Description=Pull temperature readings from MQTT and add to an RRD
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/mqtt_onewire_sensors/mqtt_to_rrd.py --rrd-path /opt/mqtt_onewire_sensors/rrd
+Restart=on-failure
+RestartSec=300
+
+[Install]
+WantedBy=multi-user.target
