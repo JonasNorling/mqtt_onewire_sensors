@@ -30,11 +30,11 @@ def plot(rrd_files, outdir, timespan="1d"):
         defs += ("DEF:sensor{i}={rrd}:value:AVERAGE " +
                  "DEF:sensor{i}_min={rrd}:value:MIN " +
                  "DEF:sensor{i}_max={rrd}:value:MAX " +
-                 "CDEF:sensor{i}_delta=sensor{i}_max,sensor{i}_min,-"
+                 "CDEF:sensor{i}_delta=sensor{i}_max,sensor{i}_min,- "
                 ).format(i = i, rrd = rrd)
         elements += ("AREA:sensor{i}_min#{color:06x}1e " +
                      "LINE2:sensor{i}_min#{color:06x}:'{label}' " +
-                     "AREA:sensor{i}_delta#{color:06x}::STACK"
+                     "AREA:sensor{i}_delta#{color:06x}::STACK "
                 ).format(i = i, color = COLORS[i], label = "thing")
     try:
         completed = subprocess.run(["rrdtool", "graph",
@@ -47,6 +47,7 @@ def plot(rrd_files, outdir, timespan="1d"):
             stdout=subprocess.PIPE)
         if completed.returncode != 0:
             log.error("RRD plot failed")
+            log.debug(completed)
     except FileNotFoundError as e:
         log.error(e)
 
