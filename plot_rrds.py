@@ -60,10 +60,15 @@ if __name__ == "__main__":
     parser.add_argument("--debug", default=False, action="store_true",
                         help="Enable debug printouts")
     parser.add_argument("--outdir", default=".", metavar="DIR", help="Output directory")
+    parser.add_argument("-t", action="append",
+                        help="Timespan to plot (can be repeated)")
     args = parser.parse_args()
     
     if args.debug:
         logging.getLogger().setLevel('DEBUG')
 
-    for timespan in ["1d", "1w", "1m", "1y"]:
+    timespans = ["1d", "1w", "1m", "1y"]
+    if args.t is not None:
+        timespans = args.t
+    for timespan in timespans:
         plot(args.rrd, args.outdir, timespan)

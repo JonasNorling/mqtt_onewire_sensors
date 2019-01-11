@@ -20,3 +20,10 @@ This script can be run as a service from systemd. See mqtt_1w.service for instal
 Dependencies:
 
 - sudo apt-get install rrdtool
+
+
+# plot_rrds.py: Generate plots from RRDs
+
+This script can plot RRDs following the format used by mqtt_to_rrd.py
+
+```./plot_rrds.py 10-0008017c52bd.rrd --debug -t 1d -t 1w```
