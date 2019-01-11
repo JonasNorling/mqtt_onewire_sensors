@@ -22,6 +22,7 @@ def create_rrd(rrdfile, prefill_src=None, prefill_ds=None):
     try:
         log.info("Creating RRD %s" % rrdfile)
         prefill_opts = []
+        prefill_ds_exp = ""
         if prefill_src is not None:
             prefill_opts = ["--source", prefill_src]
             prefill_ds_exp = "=" + prefill_ds
