@@ -95,10 +95,12 @@ if __name__ == "__main__":
                         help="Enable debug printouts")
     parser.add_argument("--prefill", nargs=3, metavar=("NEW-RRD", "OLD-RRD", "DS"),
                         help="Create a prefilled RRD")
-    parser_tls = parser.add_argument_group("TLS")
-    parser_tls.add_argument("--tls-insecure", action="store_true", default=False,
+    parser_sec = parser.add_argument_group("Security")
+    parser_sec.add_argument("--tls-insecure", action="store_true", default=False,
                         help="Disable hostname verification against cert")
-    parser_tls.add_argument("--tls-ca", help="CA certificate that has signed the server's certificate")
+    parser_sec.add_argument("--tls-ca", help="CA certificate that has signed the server's certificate")
+    parser_sec.add_argument("--username", "-u", help="Username")
+    parser_sec.add_argument("--password", "-p", help="Password")
     args = parser.parse_args()
     
     if args.debug:
@@ -119,6 +121,8 @@ if __name__ == "__main__":
         port = 8883
     client.on_connect = on_connect
     client.on_message = on_message
+    if args.username:
+        client.username_pw_set(args.username, args.password)
     client.connect(args.mqtt, port=port)
     log.info("Connected as %s" % client_id)
     
