@@ -78,11 +78,13 @@ if __name__ == "__main__":
 
     client_id = "%s-%s" % ("1w", platform.node())
     client = mqtt.Client(client_id=client_id)
+    port = 1883
     if args.tls_ca is not None:
         client.tls_set(ca_certs=args.tls_ca)
         client.tls_insecure_set(args.tls_insecure)
+        port = 8883
     client.on_connect = on_connect
-    client.connect(args.mqtt)
+    client.connect(args.mqtt, port=port)
 
     try:
         client.loop_start()

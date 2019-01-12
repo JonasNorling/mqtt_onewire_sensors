@@ -112,12 +112,14 @@ if __name__ == "__main__":
     rrd_path = args.rrd_path
 
     client = mqtt.Client(client_id=client_id, clean_session=True)
+    port = 1883
     if args.tls_ca is not None:
         client.tls_set(ca_certs=args.tls_ca)
         client.tls_insecure_set(args.tls_insecure)
+        port = 8883
     client.on_connect = on_connect
     client.on_message = on_message
-    client.connect(args.mqtt)
+    client.connect(args.mqtt, port=port)
     log.info("Connected as %s" % client_id)
     
     try:
