@@ -95,6 +95,10 @@ if __name__ == "__main__":
                         help="Enable debug printouts")
     parser.add_argument("--prefill", nargs=3, metavar=("NEW-RRD", "OLD-RRD", "DS"),
                         help="Create a prefilled RRD")
+    parser_tls = parser.add_argument_group("TLS")
+    parser_tls.add_argument("--tls-insecure", action="store_true", default=False,
+                        help="Disable hostname verification against cert")
+    parser_tls.add_argument("--tls-ca", help="CA certificate that has signed the server's certificate")
     args = parser.parse_args()
     
     if args.debug:
@@ -108,6 +112,9 @@ if __name__ == "__main__":
     rrd_path = args.rrd_path
 
     client = mqtt.Client(client_id=client_id, clean_session=True)
+    if args.tls_ca is not None:
+        client.tls_set(ca_certs=args.tls_ca)
+        client.tls_insecure_set(args.tls_insecure)
     client.on_connect = on_connect
     client.on_message = on_message
     client.connect(args.mqtt)
