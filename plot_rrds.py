@@ -77,6 +77,6 @@ if __name__ == "__main__":
         timespans = args.t
     if args.l is None:
         args.l = []
-    rrds_and_labels = itertools.zip_longest(args.rrd, args.l, fillvalue="sensor")
+    rrds_and_labels = list(itertools.zip_longest(args.rrd, args.l, fillvalue="sensor"))
     for timespan in timespans:
         plot(rrds_and_labels, args.outdir, timespan)
