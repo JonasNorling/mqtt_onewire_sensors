@@ -27,24 +27,19 @@ def create_rrd(rrdfile, prefill_src=None, prefill_ds=None):
         if prefill_src is not None:
             prefill_opts = ["--source", prefill_src]
             prefill_ds_exp = "=" + prefill_ds
-        # 4 weeks with minute level data
-        HIGH_RES_SAMPLES = 40320
-        # 365 days with ten minute level data
-        MED_RES_SAMPLES = 52560
+        # 1 year with minute level data
+        HIGH_RES_SAMPLES = 365*24*60
         # ten years with hour level data
-        LOW_RES_SAMPLES = 87600
+        LOW_RES_SAMPLES = 10*365*24
         completed = subprocess.run(["rrdtool", "create", str(rrdfile),
                 *prefill_opts,
                 "-O", "--step", "60",
                 "DS:value%s:GAUGE:3600:-100:10000" % prefill_ds_exp,
                 "RRA:AVERAGE:0.5:1:%d" % HIGH_RES_SAMPLES,
-                "RRA:AVERAGE:0.5:10:%d" % MED_RES_SAMPLES,
                 "RRA:AVERAGE:0.5:60:%d" % LOW_RES_SAMPLES,
                 "RRA:MAX:0.5:1:%d" % HIGH_RES_SAMPLES,
-                "RRA:MAX:0.5:10:%d" % MED_RES_SAMPLES,
                 "RRA:MAX:0.5:60:%d" % LOW_RES_SAMPLES,
                 "RRA:MIN:0.5:1:%d" % HIGH_RES_SAMPLES,
-                "RRA:MIN:0.5:10:%d" % MED_RES_SAMPLES,
                 "RRA:MIN:0.5:60:%d" % LOW_RES_SAMPLES])
         if completed.returncode != 0:
             log.error("RRD create failed")
