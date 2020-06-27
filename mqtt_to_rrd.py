@@ -12,9 +12,10 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+import json
 
-TOPIC_MATCH = "temperature/#"
-TOPIC_RE = re.compile(TOPIC_MATCH.replace("#", "(.+)"))
+TOPIC_MATCH = 'zigbee2mqtt/+'
+TOPIC_RE = re.compile(TOPIC_MATCH.replace('#', r'(.*)').replace('+', r'([^/]*)'))
 
 rrd_path = None
 
@@ -35,7 +36,7 @@ def create_rrd(rrdfile, prefill_src=None, prefill_ds=None):
         completed = subprocess.run(["rrdtool", "create", str(rrdfile),
                 *prefill_opts,
                 "-O", "--step", "60",
-                "DS:value%s:GAUGE:120:-60:60" % prefill_ds_exp,
+                "DS:value%s:GAUGE:3600:-100:10000" % prefill_ds_exp,
                 "RRA:AVERAGE:0.5:1:%d" % HIGH_RES_SAMPLES,
                 "RRA:AVERAGE:0.5:10:%d" % MED_RES_SAMPLES,
                 "RRA:AVERAGE:0.5:60:%d" % LOW_RES_SAMPLES,
@@ -50,9 +51,9 @@ def create_rrd(rrdfile, prefill_src=None, prefill_ds=None):
     except FileNotFoundError as e:
         log.error(e)
 
-def update_rrd(timestamp, sensorname, value):
-    log.debug("Reading at %d for %s: %.3f" % (timestamp, sensorname, value))
-    rrdfile = Path(rrd_path, "%s.rrd" % sensorname)
+def update_rrd(timestamp, source_name, value):
+    log.debug("Reading at %d for %s: %.3f" % (timestamp, source_name, value))
+    rrdfile = Path(rrd_path, "%s.rrd" % source_name)
     if not rrdfile.is_file():
         create_rrd(str(rrdfile))
     try:
@@ -74,13 +75,27 @@ def on_message(client, userdata, msg):
     match = TOPIC_RE.match(msg.topic)
     if match:
         try:
-            sensorname = match.group(1)
-            value = float(msg.payload)
-        except ValueError:
-            log.warning("Bad payload: %s %s"% (msg.topic, msg.payload))
-            return
+            node_name = match.group(1)
+            content = json.loads(msg.payload)
+            if 'temperature' in content:
+                value = content['temperature']
+                source_name = f'{node_name}-t'
+                update_rrd(int(time.time()), source_name, value)
+            if 'humidity' in content:
+                value = content['humidity']
+                source_name = f'{node_name}-rh'
+                update_rrd(int(time.time()), source_name, value)
+            if 'linkquality' in content:
+                value = content['linkquality']
+                source_name = f'{node_name}-link'
+                update_rrd(int(time.time()), source_name, value)
+            if 'voltage' in content:
+                value = content['voltage']
+                source_name = f'{node_name}-v'
+                update_rrd(int(time.time()), source_name, value)
+        except Exception as e:
+            log.warning(f'Bad payload: {msg.topic}, {msg.payload}: {e}')
 
-        update_rrd(int(time.time()), sensorname, value)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
