@@ -13,11 +13,14 @@ import subprocess
 import sys
 from pathlib import Path
 import json
+from contextlib import suppress
+from typing import Dict
 
 TOPIC_MATCH = 'zigbee2mqtt/+'
 TOPIC_RE = re.compile(TOPIC_MATCH.replace('#', r'(.*)').replace('+', r'([^/]*)'))
 
 rrd_path = None
+last_samples: Dict[str, int] = {}
 
 def create_rrd(rrdfile, prefill_src=None, prefill_ds=None):
     try:
@@ -48,6 +51,12 @@ def create_rrd(rrdfile, prefill_src=None, prefill_ds=None):
 
 def update_rrd(timestamp, source_name, value):
     log.debug("Reading at %d for %s: %.3f" % (timestamp, source_name, value))
+    with suppress(KeyError):
+        if last_samples[source_name] == timestamp:
+            log.debug("Suppressing duplicate reading")
+            return
+    last_samples[source_name] = timestamp
+
     rrdfile = Path(rrd_path, "%s.rrd" % source_name)
     if not rrdfile.is_file():
         create_rrd(str(rrdfile))
