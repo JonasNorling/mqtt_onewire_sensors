@@ -37,7 +37,7 @@ def create_rrd(rrdfile, prefill_src=None, prefill_ds=None):
         completed = subprocess.run(["rrdtool", "create", str(rrdfile),
                 *prefill_opts,
                 "-O", "--step", "60",
-                "DS:value%s:GAUGE:3600:-100:10000" % prefill_ds_exp,
+                "DS:value%s:GAUGE:4000:-100:10000" % prefill_ds_exp,
                 "RRA:AVERAGE:0.5:1:%d" % HIGH_RES_SAMPLES,
                 "RRA:AVERAGE:0.5:60:%d" % LOW_RES_SAMPLES,
                 "RRA:MAX:0.5:1:%d" % HIGH_RES_SAMPLES,
