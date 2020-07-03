@@ -6,9 +6,10 @@
 import argparse
 import itertools
 import logging
-from typing import List
-import pandas
+import time
+from typing import List, Dict
 import sqlite3
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
@@ -20,26 +21,38 @@ def get_series_id(db: sqlite3.Connection, name: str) -> int:
         return result[0]
 
 
-def plot(db: sqlite3.Connection, series_and_labels: List):
-    result = []
+def plot(db: sqlite3.Connection, series_and_labels: List, start_time: int, end_time: int, step: int):
+    dict_data = {}
+    times = range(start_time, end_time, step)
+
+    #log.info(mpl.style.available)
+    mpl.style.use('dark_background')
+    fig, ax = plt.subplots(facecolor='#332222')
+    ax.set_facecolor('#332222')
+
     for series_name, label in series_and_labels:
         series_id = get_series_id(db, series_name)
         if series_id is None:
             log.error(f'No such series {series_name}')
             continue
-        df = pandas.read_sql_query(f'SELECT time, value AS "{series_name}" FROM samples WHERE series=?',
-                                   db,
-                                   index_col='time',
-                                   parse_dates=['time'],
-                                   params=(series_id,))
-        result.append(df)
-    data: pandas.DataFrame = pandas.concat(result, sort=True)
+        series_data = np.zeros(1440)
+        cur = db.execute(f'SELECT (time/60*60) as time, value AS "{series_name}" FROM samples '
+                         'WHERE series=? AND time >= ? AND time <= ? ORDER BY time',
+                         (series_id, start_time, end_time + step))
+        data = dict(cur)
 
-    log.info(mpl.style.available)
-    mpl.style.use('dark_background')
-    fig, ax = plt.subplots(facecolor='#332222')
-    ax.set_facecolor('#332222')
-    ax.plot(data, '.-')
+        list_data = list([None] * len(times))
+        last_value = None
+        last_time = 0
+        for i, t in enumerate(times):
+            if t in data:
+                list_data[i] = data[t]
+                last_value = data[t]
+            else:
+                list_data[i] = last_value
+
+        ax.plot(times, list_data, '.')
+
     plt.savefig('plot.png')
 
 
@@ -63,4 +76,7 @@ if __name__ == '__main__':
     series_and_labels = list(itertools.zip_longest(args.series, args.l, fillvalue="sensor"))
 
     db = sqlite3.connect(f'file:{args.db}?mode=ro', uri=True)
-    plot(db, series_and_labels)
+    end_time = int(time.time() // 60) * 60
+    start_time = end_time - 24 * 60 * 60
+    step = 60
+    plot(db, series_and_labels, start_time, end_time, step)
