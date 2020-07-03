@@ -104,15 +104,12 @@ if __name__ == '__main__':
     if args.debug:
         logging.getLogger().setLevel('DEBUG')
 
-    client_id = f'mqtt_to_rrd-{platform.node()}'
+    client_id = f'mqtt_to_sql-{platform.node()}'
     db = sqlite3.connect(args.db)
     db.execute('CREATE TABLE IF NOT EXISTS series (id INTEGER PRIMARY KEY, name TEXT UNIQUE);')
     db.execute('CREATE TABLE IF NOT EXISTS samples '
                '(time INTEGER, series INTEGER, value REAL, '
                'FOREIGN KEY(series) REFERENCES series(id));')
-    db.commit()
-
-    update_db(int(time.time()), 'olle', 76.4)
     db.commit()
 
     client = mqtt.Client(client_id=client_id, clean_session=True)
