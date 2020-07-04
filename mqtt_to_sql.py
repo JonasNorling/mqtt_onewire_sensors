@@ -71,6 +71,10 @@ def on_message(client, userdata, msg):
                 value = content['humidity']
                 source_name = f'{node_name}-rh'
                 updated |= update_db(int(time.time()), source_name, value)
+            if 'pressure' in content:
+                value = content['pressure']
+                source_name = f'{node_name}-p'
+                updated |= update_db(int(time.time()), source_name, value)
             if 'linkquality' in content:
                 value = content['linkquality']
                 source_name = f'{node_name}-link'

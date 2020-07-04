@@ -9,9 +9,10 @@ import logging
 import time
 from typing import List, Dict
 import sqlite3
-import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+
+MAX_FORWARD_FILL = 3600
 
 
 def get_series_id(db: sqlite3.Connection, name: str) -> int:
@@ -22,23 +23,25 @@ def get_series_id(db: sqlite3.Connection, name: str) -> int:
 
 
 def plot(db: sqlite3.Connection, series_and_labels: List, start_time: int, end_time: int, step: int):
-    dict_data = {}
     times = range(start_time, end_time, step)
 
     #log.info(mpl.style.available)
     mpl.style.use('dark_background')
     fig, ax = plt.subplots(facecolor='#332222')
     ax.set_facecolor('#332222')
+    ax.xaxis.set_major_locator(mpl.dates.HourLocator())
+    #ax.xaxis.set_minor_locator(mpl.dates.MinuteLocator())
+    ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%H'))
+    #ax.grid(True)
 
     for series_name, label in series_and_labels:
         series_id = get_series_id(db, series_name)
         if series_id is None:
             log.error(f'No such series {series_name}')
             continue
-        series_data = np.zeros(1440)
         cur = db.execute(f'SELECT (time/60*60) as time, value AS "{series_name}" FROM samples '
                          'WHERE series=? AND time >= ? AND time <= ? ORDER BY time',
-                         (series_id, start_time, end_time + step))
+                         (series_id, start_time - MAX_FORWARD_FILL, end_time + step))
         data = dict(cur)
 
         list_data = list([None] * len(times))
@@ -48,10 +51,11 @@ def plot(db: sqlite3.Connection, series_and_labels: List, start_time: int, end_t
             if t in data:
                 list_data[i] = data[t]
                 last_value = data[t]
-            else:
+                last_time = t
+            elif t <= last_time + MAX_FORWARD_FILL:
                 list_data[i] = last_value
 
-        ax.plot(times, list_data, '.')
+        ax.plot(mpl.dates.epoch2num(times), list_data, '.-')
 
     plt.savefig('plot.png')
 
