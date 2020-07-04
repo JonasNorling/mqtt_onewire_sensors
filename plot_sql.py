@@ -7,7 +7,8 @@ import argparse
 import itertools
 import logging
 import time
-from typing import List, Dict
+from collections import OrderedDict
+from typing import List, Dict, Tuple
 import sqlite3
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -23,16 +24,14 @@ def get_series_id(db: sqlite3.Connection, name: str) -> int:
 
 
 def plot(db: sqlite3.Connection, series_and_labels: List, start_time: int, end_time: int, step: int):
-    times = range(start_time, end_time, step)
-
     #log.info(mpl.style.available)
     mpl.style.use('dark_background')
-    fig, ax = plt.subplots(facecolor='#332222')
+    fig, ax = plt.subplots(facecolor='#332222', figsize=(10, 4))
     ax.set_facecolor('#332222')
     ax.xaxis.set_major_locator(mpl.dates.HourLocator())
-    #ax.xaxis.set_minor_locator(mpl.dates.MinuteLocator())
     ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%H'))
-    #ax.grid(True)
+    ax.set_xlim(mpl.dates.epoch2num(start_time), mpl.dates.epoch2num(end_time))
+    ax.grid(color='#444444')
 
     for series_name, label in series_and_labels:
         series_id = get_series_id(db, series_name)
@@ -41,22 +40,18 @@ def plot(db: sqlite3.Connection, series_and_labels: List, start_time: int, end_t
             continue
         cur = db.execute(f'SELECT (time/60*60) as time, value AS "{series_name}" FROM samples '
                          'WHERE series=? AND time >= ? AND time <= ? ORDER BY time',
-                         (series_id, start_time - MAX_FORWARD_FILL, end_time + step))
-        data = dict(cur)
+                         (series_id, start_time - MAX_FORWARD_FILL, end_time + MAX_FORWARD_FILL))
+        data: List[Tuple[int, float]] = list(cur)
+        last_time = None
+        # Insert dummy samples to inhibit lines that are too long
+        for i, (t, v) in enumerate(data):
+            if last_time is not None and t > last_time + MAX_FORWARD_FILL:
+                data.insert(i, (t-1, None))
+            last_time = t
+        ax.plot(mpl.dates.epoch2num([t for t, v in data]), [v for t, v in data],
+                '-', label=label)
 
-        list_data = list([None] * len(times))
-        last_value = None
-        last_time = 0
-        for i, t in enumerate(times):
-            if t in data:
-                list_data[i] = data[t]
-                last_value = data[t]
-                last_time = t
-            elif t <= last_time + MAX_FORWARD_FILL:
-                list_data[i] = last_value
-
-        ax.plot(mpl.dates.epoch2num(times), list_data, '.-')
-
+    ax.legend()
     plt.savefig('plot.png')
 
 
