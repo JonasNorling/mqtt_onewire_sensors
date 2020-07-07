@@ -8,13 +8,14 @@ import itertools
 import logging
 import time
 from collections import OrderedDict
+import datetime
 from typing import List, Dict, Tuple
 import sqlite3
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
 MAX_FORWARD_FILL = 3600
-
+BG_COLOR = '#332222'
 
 def get_series_id(db: sqlite3.Connection, name: str) -> int:
     cur = db.execute('SELECT id FROM series WHERE name=?', (name, ))
@@ -38,7 +39,8 @@ def plot_series(db: sqlite3.Connection, ax, series_name: str, label: str, start_
         if last_time is not None and t > last_time + MAX_FORWARD_FILL:
             data.insert(i, (t-1, None))
         last_time = t
-    ax.plot(mpl.dates.epoch2num([t for t, v in data]), [v for t, v in data],
+    ax.plot([datetime.datetime.utcfromtimestamp(t) for t, v in data],
+            [v for t, v in data],
             '-', label=label)
 
 def plot(args):
@@ -52,26 +54,22 @@ def plot(args):
     day_count = hour_count // 24
 
     mpl.style.use('dark_background')
-    fig, ax = plt.subplots(facecolor='#332222', figsize=(10, 4))
-    ax.set_facecolor('#332222')
+    fig, ax = plt.subplots(facecolor=BG_COLOR, figsize=(9, 3))
+    ax.set_facecolor(BG_COLOR)
+    tz = datetime.datetime.now().astimezone().tzinfo
+    ax.xaxis_date(tz=tz)
     if hour_count < 48:
-        ax.xaxis.set_major_locator(mpl.dates.HourLocator())
-        ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%H'))
-    elif day_count <= 7:
-        ax.xaxis.set_major_locator(mpl.dates.DayLocator())
-        ax.xaxis.set_minor_locator(mpl.dates.HourLocator(interval=6))
-        ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%a'))
-    else:
-        ax.xaxis.set_major_locator(mpl.dates.MonthLocator())
-        ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%b'))
-    ax.set_xlim(mpl.dates.epoch2num(start_time), mpl.dates.epoch2num(end_time))
+        ax.xaxis.set_major_locator(mpl.dates.HourLocator(tz=tz))
+        ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%H', tz=tz))
+    ax.set_xlim(datetime.datetime.utcfromtimestamp(start_time),
+                datetime.datetime.utcfromtimestamp(end_time))
     ax.grid(color='#444444')
 
     for series_name, label in series_and_labels:
         plot_series(db, ax, series_name, label, start_time, end_time)
 
     fig.legend(loc='upper center', ncol=len(series_and_labels), frameon=False)
-    plt.savefig(args.out)
+    plt.savefig(args.out, facecolor=BG_COLOR)
 
 
 if __name__ == '__main__':
