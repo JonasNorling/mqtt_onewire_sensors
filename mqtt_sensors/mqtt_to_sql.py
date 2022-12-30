@@ -25,6 +25,8 @@ db: sqlite3.Connection = None
 series_ids: Dict[str, int] = {}
 last_samples: Dict[str, int] = {}
 
+log = logging.getLogger('mqtt_to_sql')
+
 
 def get_series_id(name):
     with suppress(KeyError):
@@ -101,9 +103,9 @@ topics: List[topic_data] = [
     topic_data('shelly/+', re.compile(r'shelly/(.*)'), handle_json_topic),
 ]
 
-if __name__ == '__main__':
+
+def run():
     logging.basicConfig(level=logging.INFO)
-    log = logging.getLogger('mqtt_to_sql')
 
     parser = argparse.ArgumentParser(description="Pull temperature readings from MQTT and add to a SQL database")
     parser.add_argument("--mqtt", metavar="ADDRESS", default="localhost", help="MQTT broker address")
@@ -147,3 +149,7 @@ if __name__ == '__main__':
         pass
     finally:
         client.disconnect()
+
+
+if __name__ == '__main__':
+    run()

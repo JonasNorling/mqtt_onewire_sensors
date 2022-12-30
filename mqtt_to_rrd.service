@@ -10,7 +10,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/opt/mqtt_onewire_sensors/mqtt_to_rrd.py --rrd-path /opt/mqtt_onewire_sensors/rrd
+ExecStart=mqtt_to_rrd --rrd-path /opt/mqtt_onewire_sensors/rrd
 Restart=on-failure
 RestartSec=300
 

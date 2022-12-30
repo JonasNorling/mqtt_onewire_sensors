@@ -1,0 +1,15 @@
+[project]
+name = "mqtt_sensors"
+version = "0.1.0"
+dependencies = [
+    "paho-mqtt",
+    "matplotlib"
+]
+
+[project.scripts]
+mqtt_1w = "mqtt_sensors.mqtt_1w:run"
+mqtt_to_rrd = "mqtt_sensors.mqtt_to_rrd:run"
+mqtt_to_sql = "mqtt_sensors.mqtt_to_sql:run"
+plot_rrds = "mqtt_sensors.plot_rrds:run"
+plot_sql = "mqtt_sensors.plot_sql:run"
+mqtt_shelly = "mqtt_sensors.mqtt_shelly:run"

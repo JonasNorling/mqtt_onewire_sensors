@@ -9,7 +9,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import platform
 from urllib.parse import urlparse, parse_qs
 
-from mqtt_connection import MqttConnection
+from .mqtt_connection import MqttConnection
 
 log = logging.getLogger('shelly_to_mqtt')
 mqtt_connection: MqttConnection = None

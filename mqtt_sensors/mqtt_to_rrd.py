@@ -98,7 +98,8 @@ topics: List[topic_data] = [
     topic_data('temperature/+', re.compile(r'temperature/(.*)'), handle_float_topic),
 ]
 
-if __name__ == "__main__":
+
+def run():
     logging.basicConfig(level=logging.INFO)
     log = logging.getLogger("mqtt_to_rrd")
 
@@ -148,3 +149,7 @@ if __name__ == "__main__":
         pass
     finally:
         client.disconnect()
+
+
+if __name__ == "__main__":
+    run()

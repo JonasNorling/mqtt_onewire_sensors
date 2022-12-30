@@ -9,7 +9,7 @@ import platform
 from pathlib import Path
 import time
 
-from mqtt_connection import MqttConnection
+from .mqtt_connection import MqttConnection
 
 TOPIC = "temperature/%s"
 W1_PATH = "/sys/bus/w1/devices/"

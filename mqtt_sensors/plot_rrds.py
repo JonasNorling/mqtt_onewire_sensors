@@ -21,6 +21,9 @@ COLOR_OPTS = "--color SHADEA#{BG:06x} --color SHADEB#{BG:06x} \
 --color GRID#444444 --color MGRID#777777".format(
     BG=BG_COLOR, FG=FG_COLOR)
 
+log = logging.getLogger("mqtt_1w")
+
+
 def plot(rrds_and_labels, outdir, timespan="1d"):
     log.debug("Plotting %s" % timespan)
     start = "now-%s" % timespan
@@ -54,9 +57,9 @@ def plot(rrds_and_labels, outdir, timespan="1d"):
     except FileNotFoundError as e:
         log.error(e)
 
-if __name__ == "__main__":
+
+def run():
     logging.basicConfig(level=logging.INFO)
-    log = logging.getLogger("mqtt_1w")
 
     parser = argparse.ArgumentParser(description="Publish one-wire sensor values with MQTT")
     parser.add_argument(nargs="+", dest="rrd", metavar="RRD", help="RRD files")
@@ -80,3 +83,7 @@ if __name__ == "__main__":
     rrds_and_labels = list(itertools.zip_longest(args.rrd, args.l, fillvalue="sensor"))
     for timespan in timespans:
         plot(rrds_and_labels, args.outdir, timespan)
+
+
+if __name__ == "__main__":
+    run()

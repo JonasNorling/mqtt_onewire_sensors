@@ -16,6 +16,8 @@ import matplotlib as mpl
 MAX_FORWARD_FILL = 3600
 BG_COLOR = '#332222'
 
+log = logging.getLogger('plot_sql')
+
 
 def get_series_id(db: sqlite3.Connection, name: str) -> int:
     cur = db.execute('SELECT id FROM series WHERE name=?', (name, ))
@@ -73,9 +75,8 @@ def plot(args):
     plt.savefig(args.out, facecolor=BG_COLOR)
 
 
-if __name__ == '__main__':
+def run():
     logging.basicConfig(level=logging.INFO)
-    log = logging.getLogger('plot_sql')
 
     parser = argparse.ArgumentParser(description="Plot readings from a SQL database")
     parser.add_argument(nargs="+", dest="series", metavar="SERIES", help="Data series")
@@ -93,3 +94,7 @@ if __name__ == '__main__':
         args.l = []
 
     plot(args)
+
+
+if __name__ == '__main__':
+    run()
