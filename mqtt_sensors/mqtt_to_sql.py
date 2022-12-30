@@ -123,6 +123,7 @@ def run():
         logging.getLogger().setLevel('DEBUG')
 
     client_id = f'mqtt_to_sql-{platform.node()}'
+    global db
     db = sqlite3.connect(args.db)
     db.execute('CREATE TABLE IF NOT EXISTS series (id INTEGER PRIMARY KEY, name TEXT UNIQUE);')
     db.execute('CREATE TABLE IF NOT EXISTS samples '
