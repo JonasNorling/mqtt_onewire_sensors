@@ -24,9 +24,9 @@ class RequestHandler(BaseHTTPRequestHandler):
         hum = float(qs.get('hum', [math.nan])[0])
         temp = float(qs.get('temp', [math.nan])[0])
         sensor_id = qs.get('id', [''])[0]
-        log.info(f'Report from {sensor_id}: temp={temp:.2f}°C RH={hum:.0f}%')
-        mqtt_connection.publish(f'temperature/{sensor_id}', str(temp))
-        mqtt_connection.publish(f'humidity/{sensor_id}', str(hum))
+        log.info(f'Report from {sensor_id}: temp={temp:.2f}°C RH={hum:.1f}%')
+        doc = f'{{"temperature":{temp:.2f}, "humidity":{hum:.1f}}}'
+        mqtt_connection.publish(f'shelly/{sensor_id}', doc)
         self.send_response(200)
         self.end_headers()
 
