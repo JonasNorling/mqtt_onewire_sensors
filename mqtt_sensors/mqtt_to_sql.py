@@ -64,7 +64,7 @@ def on_message(client, userdata, msg):
         match = topic.re.match(msg.topic)
         if match:
             try:
-                topic.handler(match[0], msg.payload)
+                topic.handler(match.group(1), msg.payload)
             except Exception as e:
                 log.warning(f'Bad payload: {msg.topic}, {msg.payload}: {e}')
 
