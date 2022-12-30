@@ -6,27 +6,28 @@
 import argparse
 import logging
 import platform
-import paho.mqtt.client as mqtt
 from pathlib import Path
 import time
+
+from mqtt_connection import MqttConnection
 
 TOPIC = "temperature/%s"
 W1_PATH = "/sys/bus/w1/devices/"
 
-def on_connect(mqtt_client, userdata, flags, rc):
-    log.info("Connected: %s" % rc)
+log = logging.getLogger("mqtt_1w")
 
-def sample_loop(t, mqtt_client):
-    last_time = time.time() - t
+
+def sample_loop(sample_interval, mqtt_connection: MqttConnection):
+    last_time = time.monotonic() - sample_interval
     while True:
-        t = args.time
         try:
-            time.sleep(last_time + t - time.time())
+            time.sleep(last_time + sample_interval - time.monotonic())
         except ValueError:
             pass
 
-        last_time = time.time()
-        sample_onewire(mqtt_client)
+        last_time = time.monotonic()
+        sample_onewire(mqtt_connection)
+
 
 def parse(lines):
     if lines[0].strip()[-3:] != 'YES':
@@ -41,7 +42,8 @@ def parse(lines):
     else:
         raise RuntimeError("Unable to parse")
 
-def sample_onewire(mqtt_client):
+
+def sample_onewire(mqtt_connection: MqttConnection):
     log.debug("Sampling one-wire sensors")
 
     for s_path in Path(W1_PATH).glob("*/w1_slave"):
@@ -51,49 +53,35 @@ def sample_onewire(mqtt_client):
             text = s_path.read_text()
             temperature = parse(text.splitlines())
             log.debug("Sensor %s = %.3f C" % (sensor_name, temperature))
-            mqtt_client.publish(TOPIC % sensor_name, temperature)
+            mqtt_connection.publish(TOPIC % sensor_name, str(temperature))
         except (IOError, RuntimeError) as e:
             log.warning(e)
 
-if __name__ == "__main__":
+
+def run():
     logging.basicConfig(level=logging.INFO)
-    log = logging.getLogger("mqtt_1w")
 
     parser = argparse.ArgumentParser(description="Publish one-wire sensor values with MQTT")
-    parser.add_argument("--mqtt", metavar="ADDRESS", default="localhost",
-                        help="MQTT broker address")
     parser.add_argument("--time", metavar="SEC", default=20, type=int,
                         help="Sample interval [seconds]")
     parser.add_argument("--debug", default=False, action="store_true",
                         help="Enable debug printouts")
-    parser_sec = parser.add_argument_group("Security")
-    parser_sec.add_argument("--tls-insecure", action="store_true", default=False,
-                        help="Disable hostname verification against cert")
-    parser_sec.add_argument("--tls-ca", help="CA certificate that has signed the server's certificate")
-    parser_sec.add_argument("--username", "-u", help="Username")
-    parser_sec.add_argument("--password", "-p", help="Password")
+    MqttConnection.add_args(parser)
     args = parser.parse_args()
     
     if args.debug:
         logging.getLogger().setLevel('DEBUG')
 
-    client_id = "%s-%s" % ("1w", platform.node())
-    client = mqtt.Client(client_id=client_id)
-    port = 1883
-    if args.tls_ca is not None:
-        client.tls_set(ca_certs=args.tls_ca)
-        client.tls_insecure_set(args.tls_insecure)
-        port = 8883
-    client.on_connect = on_connect
-    if args.username:
-        client.username_pw_set(args.username, args.password)
-    client.connect(args.mqtt, port=port)
+    mqtt_connection = MqttConnection(f'1w-{platform.node()}', args, log)
 
     try:
-        client.loop_start()
-        sample_loop(args.time, client)
+        mqtt_connection.start()
+        sample_loop(args.time, mqtt_connection)
     except KeyboardInterrupt:
-        pass
+        log.info('Exit on CTRL-C')
     finally:
-        client.loop_stop()
-        client.disconnect()
+        mqtt_connection.stop()
+
+
+if __name__ == "__main__":
+    run()
