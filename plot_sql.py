@@ -7,15 +7,15 @@ import argparse
 import itertools
 import logging
 import time
-from collections import OrderedDict
 import datetime
-from typing import List, Dict, Tuple
+from typing import List, Tuple
 import sqlite3
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
 MAX_FORWARD_FILL = 3600
 BG_COLOR = '#332222'
+
 
 def get_series_id(db: sqlite3.Connection, name: str) -> int:
     cur = db.execute('SELECT id FROM series WHERE name=?', (name, ))
@@ -42,6 +42,7 @@ def plot_series(db: sqlite3.Connection, ax, series_name: str, label: str, start_
     ax.plot([datetime.datetime.utcfromtimestamp(t) for t, v in data],
             [v for t, v in data],
             '-', label=label)
+
 
 def plot(args):
     series_and_labels = list(itertools.zip_longest(args.series, args.l, fillvalue="sensor"))

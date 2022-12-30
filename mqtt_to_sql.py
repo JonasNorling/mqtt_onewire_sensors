@@ -6,14 +6,17 @@
 import argparse
 import logging
 import platform
+from collections import namedtuple
 from contextlib import suppress
-from typing import Dict
+from typing import Dict, List
 
 import paho.mqtt.client as mqtt
 import time
 import re
 import json
 import sqlite3
+
+topic_data = namedtuple('topic_data', 'mqtt,re,handler')
 
 TOPIC_MATCH = 'zigbee2mqtt/+'
 TOPIC_RE = re.compile(TOPIC_MATCH.replace('#', r'(.*)').replace('+', r'([^/]*)'))
@@ -57,37 +60,46 @@ def on_connect(client, userdata, flags, rc):
 
 def on_message(client, userdata, msg):
     log.debug(f'Message: {msg.topic}: {msg.payload}')
-    match = TOPIC_RE.match(msg.topic)
-    if match:
-        try:
-            updated = False
-            node_name = match.group(1)
-            content = json.loads(msg.payload)
-            if 'temperature' in content:
-                value = content['temperature']
-                source_name = f'{node_name}-t'
-                updated |= update_db(int(time.time()), source_name, value)
-            if 'humidity' in content:
-                value = content['humidity']
-                source_name = f'{node_name}-rh'
-                updated |= update_db(int(time.time()), source_name, value)
-            if 'pressure' in content:
-                value = content['pressure']
-                source_name = f'{node_name}-p'
-                updated |= update_db(int(time.time()), source_name, value)
-            if 'linkquality' in content:
-                value = content['linkquality']
-                source_name = f'{node_name}-link'
-                updated |= update_db(int(time.time()), source_name, value)
-            if 'voltage' in content:
-                value = content['voltage']
-                source_name = f'{node_name}-v'
-                updated |= update_db(int(time.time()), source_name, value)
-            if updated:
-                db.commit()
-        except Exception as e:
-            log.warning(f'Bad payload: {msg.topic}, {msg.payload}: {e}')
+    for topic in topics:
+        match = topic.re.match(msg.topic)
+        if match:
+            try:
+                topic.handler(match[0], msg.payload)
+            except Exception as e:
+                log.warning(f'Bad payload: {msg.topic}, {msg.payload}: {e}')
 
+
+def handle_json_topic(node_name, payload):
+    updated = False
+    content = json.loads(payload)
+    if 'temperature' in content:
+        value = content['temperature']
+        source_name = f'{node_name}-t'
+        updated |= update_db(int(time.time()), source_name, value)
+    if 'humidity' in content:
+        value = content['humidity']
+        source_name = f'{node_name}-rh'
+        updated |= update_db(int(time.time()), source_name, value)
+    if 'pressure' in content:
+        value = content['pressure']
+        source_name = f'{node_name}-p'
+        updated |= update_db(int(time.time()), source_name, value)
+    if 'linkquality' in content:
+        value = content['linkquality']
+        source_name = f'{node_name}-link'
+        updated |= update_db(int(time.time()), source_name, value)
+    if 'voltage' in content:
+        value = content['voltage']
+        source_name = f'{node_name}-v'
+        updated |= update_db(int(time.time()), source_name, value)
+    if updated:
+        db.commit()
+
+
+topics: List[topic_data] = [
+    topic_data('zigbee2mqtt/+', re.compile(r'zigbee2mqtt/(.*)'), handle_json_topic),
+    topic_data('shelly/+', re.compile(r'shelly/(.*)'), handle_json_topic),
+]
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
