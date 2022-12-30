@@ -1,6 +1,6 @@
 [project]
 name = "mqtt_sensors"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
     "paho-mqtt",
     "matplotlib"

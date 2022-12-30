@@ -21,6 +21,8 @@ topic_data = namedtuple('topic_data', 'mqtt,re,handler')
 rrd_path = None
 last_samples: Dict[str, int] = {}
 
+log = logging.getLogger("mqtt_to_rrd")
+
 
 def create_rrd(rrdfile, prefill_src=None, prefill_ds=None):
     try:
@@ -101,7 +103,6 @@ topics: List[topic_data] = [
 
 def run():
     logging.basicConfig(level=logging.INFO)
-    log = logging.getLogger("mqtt_to_rrd")
 
     parser = argparse.ArgumentParser(description="Pull temperature readings from MQTT and add to an RRD")
     parser.add_argument("--mqtt", metavar="ADDRESS", default="localhost",
@@ -128,6 +129,7 @@ def run():
         sys.exit(0)
 
     client_id = "%s-%s" % ("mqtt_to_rrd", platform.node())
+    global rrd_path
     rrd_path = args.rrd_path
 
     client = mqtt.Client(client_id=client_id, clean_session=True)

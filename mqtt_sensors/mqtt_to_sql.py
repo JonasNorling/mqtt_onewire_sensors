@@ -18,9 +18,6 @@ import sqlite3
 
 topic_data = namedtuple('topic_data', 'mqtt,re,handler')
 
-TOPIC_MATCH = 'zigbee2mqtt/+'
-TOPIC_RE = re.compile(TOPIC_MATCH.replace('#', r'(.*)').replace('+', r'([^/]*)'))
-
 db: sqlite3.Connection = None
 series_ids: Dict[str, int] = {}
 last_samples: Dict[str, int] = {}
@@ -57,7 +54,8 @@ def update_db(timestamp: int, source_name: str, value: float) -> bool:
 def on_connect(client, userdata, flags, rc):
     log.info(f'Connected: {rc}')
     client.subscribe("$SYS/broker/version")
-    client.subscribe(TOPIC_MATCH)
+    for topic in topics:
+        client.subscribe(topic.mqtt)
 
 
 def on_message(client, userdata, msg):
