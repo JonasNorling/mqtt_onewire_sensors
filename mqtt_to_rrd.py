@@ -14,7 +14,6 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-import json
 from contextlib import suppress
 from typing import Dict, List
 
@@ -90,33 +89,12 @@ def on_message(client, userdata, msg):
                 log.warning(f'Bad payload: {msg.topic}, {msg.payload}: {e}')
 
 
-def handle_json_topic(node_name, payload):
-    content = json.loads(payload)
-    if 'temperature' in content:
-        value = content['temperature']
-        source_name = f'{node_name}-t'
-        update_rrd(int(time.time()), source_name, value)
-    if 'humidity' in content:
-        value = content['humidity']
-        source_name = f'{node_name}-rh'
-        update_rrd(int(time.time()), source_name, value)
-    if 'linkquality' in content:
-        value = content['linkquality']
-        source_name = f'{node_name}-link'
-        update_rrd(int(time.time()), source_name, value)
-    if 'voltage' in content:
-        value = content['voltage']
-        source_name = f'{node_name}-v'
-        update_rrd(int(time.time()), source_name, value)
-
-
 def handle_float_topic(node_name, payload):
     value = float(payload)
     update_rrd(int(time.time()), node_name, value)
 
 
 topics: List[topic_data] = [
-    topic_data('zigbee2mqtt/+', re.compile(r'zigbee2mqtt/(.*)'), handle_json_topic),
     topic_data('temperature/+', re.compile(r'temperature/(.*)'), handle_float_topic),
 ]
 
