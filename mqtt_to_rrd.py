@@ -6,17 +6,21 @@
 import argparse
 import logging
 import platform
+from collections import namedtuple
+
 import paho.mqtt.client as mqtt
 import time
 import re
 import subprocess
 import sys
 from pathlib import Path
+from contextlib import suppress
+from typing import Dict, List
 
-TOPIC_MATCH = "temperature/#"
-TOPIC_RE = re.compile(TOPIC_MATCH.replace("#", "(.+)"))
-
+topic_data = namedtuple('topic_data', 'mqtt,re,handler')
 rrd_path = None
+last_samples: Dict[str, int] = {}
+
 
 def create_rrd(rrdfile, prefill_src=None, prefill_ds=None):
     try:
@@ -26,33 +30,35 @@ def create_rrd(rrdfile, prefill_src=None, prefill_ds=None):
         if prefill_src is not None:
             prefill_opts = ["--source", prefill_src]
             prefill_ds_exp = "=" + prefill_ds
-        # 4 weeks with minute level data
-        HIGH_RES_SAMPLES = 40320
-        # 365 days with ten minute level data
-        MED_RES_SAMPLES = 52560
+        # 1 year with minute level data
+        HIGH_RES_SAMPLES = 365*24*60
         # ten years with hour level data
-        LOW_RES_SAMPLES = 87600
+        LOW_RES_SAMPLES = 10*365*24
         completed = subprocess.run(["rrdtool", "create", str(rrdfile),
                 *prefill_opts,
                 "-O", "--step", "60",
-                "DS:value%s:GAUGE:120:-60:60" % prefill_ds_exp,
+                "DS:value%s:GAUGE:4000:-100:10000" % prefill_ds_exp,
                 "RRA:AVERAGE:0.5:1:%d" % HIGH_RES_SAMPLES,
-                "RRA:AVERAGE:0.5:10:%d" % MED_RES_SAMPLES,
                 "RRA:AVERAGE:0.5:60:%d" % LOW_RES_SAMPLES,
                 "RRA:MAX:0.5:1:%d" % HIGH_RES_SAMPLES,
-                "RRA:MAX:0.5:10:%d" % MED_RES_SAMPLES,
                 "RRA:MAX:0.5:60:%d" % LOW_RES_SAMPLES,
                 "RRA:MIN:0.5:1:%d" % HIGH_RES_SAMPLES,
-                "RRA:MIN:0.5:10:%d" % MED_RES_SAMPLES,
                 "RRA:MIN:0.5:60:%d" % LOW_RES_SAMPLES])
         if completed.returncode != 0:
             log.error("RRD create failed")
     except FileNotFoundError as e:
         log.error(e)
 
-def update_rrd(timestamp, sensorname, value):
-    log.debug("Reading at %d for %s: %.3f" % (timestamp, sensorname, value))
-    rrdfile = Path(rrd_path, "%s.rrd" % sensorname)
+
+def update_rrd(timestamp, source_name, value):
+    log.debug("Reading at %d for %s: %.3f" % (timestamp, source_name, value))
+    with suppress(KeyError):
+        if last_samples[source_name] == timestamp:
+            log.debug("Suppressing duplicate reading")
+            return
+    last_samples[source_name] = timestamp
+
+    rrdfile = Path(rrd_path, "%s.rrd" % source_name)
     if not rrdfile.is_file():
         create_rrd(str(rrdfile))
     try:
@@ -63,24 +69,34 @@ def update_rrd(timestamp, sensorname, value):
     except FileNotFoundError as e:
         log.error(e)
 
+
 def on_connect(client, userdata, flags, rc):
     log.info("Connected: %s" % rc)
 
     client.subscribe("$SYS/broker/version")
-    client.subscribe(TOPIC_MATCH)
+    for topic in topics:
+        client.subscribe(topic.mqtt)
+
 
 def on_message(client, userdata, msg):
     log.debug("Message: %s %s" % (msg.topic, msg.payload))
-    match = TOPIC_RE.match(msg.topic)
-    if match:
-        try:
-            sensorname = match.group(1)
-            value = float(msg.payload)
-        except ValueError:
-            log.warning("Bad payload: %s %s"% (msg.topic, msg.payload))
-            return
+    for topic in topics:
+        match = topic.re.match(msg.topic)
+        if match:
+            try:
+                topic.handler(match[0], msg.payload)
+            except Exception as e:
+                log.warning(f'Bad payload: {msg.topic}, {msg.payload}: {e}')
 
-        update_rrd(int(time.time()), sensorname, value)
+
+def handle_float_topic(node_name, payload):
+    value = float(payload)
+    update_rrd(int(time.time()), node_name, value)
+
+
+topics: List[topic_data] = [
+    topic_data('temperature/+', re.compile(r'temperature/(.*)'), handle_float_topic),
+]
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
